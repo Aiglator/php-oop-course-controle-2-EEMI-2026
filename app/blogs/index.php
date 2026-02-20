@@ -1,80 +1,40 @@
 <?php
 session_start();
 
+require_once __DIR__ . '/../vendor/autoload.php';
+
+use App\Models\Post;
+use App\Models\Comment;
+
+$postModel    = new Post();
+$commentModel = new Comment();
+$postId       = (int) ($_GET['id'] ?? 0);
+$post         = $postModel->findWithAuthor($postId);
+
+if (!$post) {
+    http_response_code(404);
+    echo 'Post introuvable';
+    exit;
+}
+
 function isLoggedIn(): bool {
     return isset($_SESSION['user_id']);
 }
 
-function getDbConnexion(): PDO {
-    $host = 'php-oop-exercice-db';
-    $db = 'blog';
-    $user = 'root';
-    $password = 'password';
-
-    $dsn = "mysql:host=$host;dbname=$db;charset=UTF8";
-
-    return new PDO($dsn, $user, $password);
-}
-
-function getBlogPost(): array {
-    $sql = "SELECT posts.*, users.name, users.id as user_id
-    FROM posts 
-    INNER JOIN users ON posts.user_id = users.id
-    WHERE posts.id = :id
-    ";
-    $stmt = getDbConnexion()->prepare($sql);
-    $stmt->execute(['id' => $_GET['id']]);
-    $post = $stmt->fetch(PDO::FETCH_ASSOC);
-
-    return $post;
-}
-
-function getAuthor(int $id): array {
-    $sql = "SELECT * FROM users WHERE id = :id";
-    $stmt = getDbConnexion()->prepare($sql);
-    $stmt->execute(['id' => $id]);
-    $author = $stmt->fetch(PDO::FETCH_ASSOC);
-
-    return $author;
-}
-
-function getComments(int $postId): array {
-    $sql = "SELECT comments.*, users.name as user_name, users.id as user_id FROM comments INNER JOIN users ON comments.user_id = users.id WHERE post_id = :post_id";
-    $stmt = getDbConnexion()->prepare($sql);
-    $stmt->execute(['post_id' => $postId]);
-    $comments = $stmt->fetchAll(PDO::FETCH_ASSOC);
-
-    return $comments;
-}
-
-$post = getBlogPost();
-$author = getAuthor($post['user_id']);
-$comments = getComments($post['id']);
-
-function postComment(string $content) {
-    if(isLoggedIn() === false) {
-        return;
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && isLoggedIn()) {
+    $content = $_POST['comment'] ?? '';
+    if ($content) {
+        $commentModel->insert([
+            'content' => $content,
+            'post_id' => $postId,
+            'user_id' => $_SESSION['user_id'],
+        ]);
     }
-
-    $post = getBlogPost();
-
-    $comment = [
-        'content' => $content,
-        'post_id' => $post['id'],
-        'user_id' => $_SESSION['user_id'],
-    ];
-
-    $sql = 'INSERT INTO comments (content, post_id, user_id) VALUES (:content, :post_id, :user_id)';
-    $stmt = getDbConnexion()->prepare($sql);
-    $stmt->execute($comment);
-    header('Location: /blogs/index.php?id=' . $post['id']);
+    header('Location: /blogs/index.php?id=' . $postId);
+    exit;
 }
 
-if($_SERVER['REQUEST_METHOD'] === 'POST') {
-    $comment = $_POST['comment'];
-
-    postComment($comment);
-}
+$comments = $commentModel->findByPost($postId);
 ?>
 
 <!doctype html>
@@ -101,28 +61,28 @@ if($_SERVER['REQUEST_METHOD'] === 'POST') {
                 </div>
             </div>
             <div class="flex flex-col w-11/12 items-center justify-start">
-                <h1 class="text-4xl"><?= $post['title'] ?> </h1>
-                <a href="/users.php?id=<?= $author['id'] ?>" class="p">By <?= $author['name'] ?></a>
+                <h1 class="text-4xl"><?= $post['title'] ?></h1>
+                <a href="/users.php?id=<?= $post['user_id'] ?>" class="p">By <?= $post['author_name'] ?></a>
 
                 <div class="flex flex-col w-full items-center justify-start space-y-4">
                     <p><?= $post['content'] ?></p>
                     <h2 class="text-2xl">Comments</h2>
                     <?php if (isLoggedIn()): ?>
-                        <form action="/blogs/index.php?id=<?php echo $post['id'] ?>" method="post" class="flex flex-col w-1/2 space-y-4">
+                        <form action="/blogs/index.php?id=<?= $postId ?>" method="post" class="flex flex-col w-1/2 space-y-4">
                             <input type="text" name="comment" placeholder="Comment" class="p-2 border border-gray-300 rounded">
                             <button type="submit" class="p-2 bg-blue-500 text-white rounded">Comment</button>
                         </form>
                     <?php endif; ?>
                     <?php foreach($comments as $comment): ?>
                         <div class="flex flex-col w-full items-center justify-start border border-gray-300 p-4">
-                            <a href="/users.php?id=<?= $comment['user_id'] ?>" class="p">By <?= $comment['user_name'] ?></a>
+                            <a href="/users.php?id=<?= $comment['user_id'] ?>" class="p">By <?= $comment['commenter_name'] ?></a>
                             <p><?= $comment['content'] ?></p>
                         </div>
                     <?php endforeach; ?>
                 </div>
-                
+
             </div>
-        </div>        
+        </div>
     </main>
 </body>
 </html>

@@ -12,9 +12,9 @@ function getDbConnexion(): PDO {
     $user = 'root';
     $password = 'password';
 
-    $dsn = "mysql:host=$host;dbname=$db;charset=UTF8";
+    $pdon = "mysql:host=$host;dbname=$db;charset=UTF8";
 
-    return new PDO($dsn, $user, $password);
+    return new PDO($pdon, $user, $password);
 }
 
 $pdo = getDbConnexion();
@@ -34,8 +34,8 @@ for ($i = 0; $i < 10; $i++) {
     $user['password'] = password_hash($user['email'], PASSWORD_DEFAULT);
 
     $sql = 'INSERT INTO users (name, email, password) VALUES (:name, :email, :password)';
-    $stmt = $pdo->prepare($sql);
-    $stmt->execute($user);
+    $query = $pdo->prepare($sql);
+    $query->execute($user);
 
     $user['id'] = $pdo->lastInsertId();
 
@@ -51,8 +51,8 @@ foreach($users as $user) {
         ];
 
         $sql = 'INSERT INTO posts (title, content, user_id) VALUES (:title, :content, :user_id)';
-        $stmt = $pdo->prepare($sql);
-        $stmt->execute($post);
+        $query = $pdo->prepare($sql);
+        $query->execute($post);
 
         $post['id'] = $pdo->lastInsertId();
 
@@ -70,8 +70,8 @@ foreach($posts as $post) {
         ];
 
         $sql = 'INSERT INTO comments (content, post_id, user_id) VALUES (:content, :post_id, :user_id)';
-        $stmt = $pdo->prepare($sql);
-        $stmt->execute($comment);
+        $query = $pdo->prepare($sql);
+        $query->execute($comment);
 
         $comments[] = $comment;
     }
